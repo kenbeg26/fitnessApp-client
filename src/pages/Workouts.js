@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import AddWorkout from '../components/AddWorkout';
@@ -14,67 +13,80 @@ const Workouts = () => {
   const [showForm, setShowForm] = useState(false);
   const navigate = useNavigate();
 
-  const fetchWorkouts = async () => {
+  const fetchWorkouts = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/workouts/getMyWorkouts`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/workouts/getMyWorkouts`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      setWorkouts(response.data);
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          navigate('/login');
+        }
+        throw new Error((await response.json()).message || 'Failed to fetch workouts');
+      }
+
+      const data = await response.json();
+      setWorkouts(data);
       setLoading(false);
     } catch (err) {
-      setError(err.response?.data?.message || err.message);
+      setError(err.message);
       setLoading(false);
-      if (err.response?.status === 401) {
-        navigate('/login');
-      }
     }
-  };
+  }, [navigate]);
 
   useEffect(() => {
     fetchWorkouts();
-  }, []);
+  }, [fetchWorkouts]);
 
   const handleDelete = async (workoutId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`${process.env.REACT_APP_API_BASE_URL}/workouts/deleteWorkout/${workoutId}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/workouts/deleteWorkout/${workoutId}`, {
+        method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
+
+      if (!response.ok) {
+        throw new Error((await response.json()).message || 'Failed to delete workout');
+      }
+
       setWorkouts(workouts.filter(workout => workout._id !== workoutId));
       setError(null);
       toast.success("Workout deleted successfully!");
     } catch (err) {
-      if (err.response?.status === 403) {
-        setError("You are not authorized to delete this workout.");
-      } else {
-        setError(err.response?.data?.message || err.message);
-      }
+      setError(err.message);
     }
   };
 
   const handleComplete = async (workoutId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.patch(
-        `${process.env.REACT_APP_API_BASE_URL}/workouts/completeWorkoutStatus/${workoutId}`,
-        {},
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/workouts/completeWorkoutStatus/${workoutId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+      });
+
+      if (!response.ok) {
+        throw new Error((await response.json()).message || 'Failed to mark workout as complete');
+      }
+
+      const data = await response.json();
       setWorkouts(workouts.map(workout =>
-        workout._id === workoutId ? response.data.updatedWorkout : workout
+        workout._id === workoutId ? data.updatedWorkout : workout
       ));
       toast.success("Workout marked as completed!");
     } catch (err) {
-      setError(err.response?.data?.message || err.message);
+      setError(err.message);
     }
   };
 
@@ -96,29 +108,27 @@ const Workouts = () => {
   const handleFormSubmit = async (formData) => {
     try {
       const token = localStorage.getItem('token');
-      let response;
+      const url = editingWorkout
+        ? `${process.env.REACT_APP_API_BASE_URL}/workouts/updateWorkout/${editingWorkout._id}`
+        : `${process.env.REACT_APP_API_BASE_URL}/workouts/addWorkout`;
+      const method = editingWorkout ? 'PATCH' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (!response.ok) {
+        throw new Error((await response.json()).message || 'Failed to submit workout');
+      }
 
       if (editingWorkout) {
-        response = await axios.patch(
-          `${process.env.REACT_APP_API_BASE_URL}/workouts/updateWorkout/${editingWorkout._id}`,
-          formData,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          }
-        );
         toast.success("Workout updated successfully!");
       } else {
-        response = await axios.post(
-          `${process.env.REACT_APP_API_BASE_URL}/workouts/addWorkout`,
-          formData,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          }
-        );
         toast.success("Workout added successfully!");
       }
 
@@ -126,11 +136,7 @@ const Workouts = () => {
       setShowForm(false);
       setError(null);
     } catch (err) {
-      if (err.response?.status === 403) {
-        setError("You are not authorized to update this workout.");
-      } else {
-        setError(err.response?.data?.message || err.message);
-      }
+      setError(err.message);
     }
   };
 

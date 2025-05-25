@@ -10,49 +10,55 @@ const notyf = new Notyf();
 
 export default function Login() {
   const { user, setUser } = useContext(UserContext);
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isActive, setIsActive] = useState(false);
 
-  function authenticate(e) {
+  useEffect(() => {
+    setIsActive(email !== '' && password !== '');
+  }, [email, password]);
+
+  const authenticate = async (e) => {
     e.preventDefault();
-    fetch(`${process.env.REACT_APP_API_BASE_URL}/users/login`, {
-      method: 'POST',
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        email: email,
-        password: password
-      })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.access !== undefined) {
-          localStorage.setItem('token', data.access);
-          console.log('Token received:', data.access);
-          retrieveUserDetails(data.access);
-          setEmail('');
-          setPassword('');
-          notyf.success("You are now logged in!");
-        } else if (data.message === "Incorrect email or password") {
-          notyf.error("Incorrect email or password");
-        } else {
-          notyf.error(`${email} does not exist`);
+    try {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/users/login`, {
+        method: 'POST',
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+
+      if (data.access) {
+        localStorage.setItem('token', data.access);
+        console.log('Token received:', data.access);
+        retrieveUserDetails(data.access);
+        setEmail('');
+        setPassword('');
+        notyf.success("You are now logged in!");
+      } else if (data.message === "Incorrect email or password") {
+        notyf.error("Incorrect email or password");
+      } else {
+        notyf.error(`${email} does not exist`);
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      notyf.error("An error occurred during login.");
+    }
+  };
+
+  const retrieveUserDetails = async (token) => {
+    try {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/users/details`, {
+        headers: {
+          Authorization: `Bearer ${token}`
         }
       });
-  }
+      const data = await res.json();
 
-  function retrieveUserDetails(token) {
-    fetch(`${process.env.REACT_APP_API_BASE_URL}/users/details`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    })
-      .then(res => res.json())
-      .then(data => {
-        console.log('User details response:', data); // helpful debug log
+      if (data.user) {
+        console.log('User details response:', data);
         setUser({
           id: data.user._id,
           isAdmin: data.user.isAdmin,
@@ -60,17 +66,15 @@ export default function Login() {
           firstName: data.user.firstName,
           lastName: data.user.lastName
         });
-      });
-  }
-
-
-  useEffect(() => {
-    if (email !== '' && password !== '') {
-      setIsActive(true);
-    } else {
-      setIsActive(false);
+      } else {
+        console.warn("No user data found");
+        notyf.error("Failed to retrieve user details.");
+      }
+    } catch (error) {
+      console.error("User details fetch error:", error);
+      notyf.error("An error occurred while retrieving user details.");
     }
-  }, [email, password]);
+  };
 
   if (user.id !== null) {
     return <Navigate to="/" />;
