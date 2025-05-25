@@ -3,6 +3,8 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import AddWorkout from '../components/AddWorkout';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const Workouts = () => {
   const [workouts, setWorkouts] = useState([]);
@@ -44,7 +46,8 @@ const Workouts = () => {
         }
       });
       setWorkouts(workouts.filter(workout => workout._id !== workoutId));
-      setError(null); // Clear error on success
+      setError(null);
+      toast.success("Workout deleted successfully!");
     } catch (err) {
       if (err.response?.status === 403) {
         setError("You are not authorized to delete this workout.");
@@ -53,7 +56,6 @@ const Workouts = () => {
       }
     }
   };
-
 
   const handleComplete = async (workoutId) => {
     try {
@@ -70,6 +72,7 @@ const Workouts = () => {
       setWorkouts(workouts.map(workout =>
         workout._id === workoutId ? response.data.updatedWorkout : workout
       ));
+      toast.success("Workout marked as completed!");
     } catch (err) {
       setError(err.response?.data?.message || err.message);
     }
@@ -96,7 +99,6 @@ const Workouts = () => {
       let response;
 
       if (editingWorkout) {
-        // PATCH request to update workout
         response = await axios.patch(
           `${process.env.REACT_APP_API_BASE_URL}/workouts/updateWorkout/${editingWorkout._id}`,
           formData,
@@ -106,8 +108,8 @@ const Workouts = () => {
             }
           }
         );
+        toast.success("Workout updated successfully!");
       } else {
-        // POST request to add workout
         response = await axios.post(
           `${process.env.REACT_APP_API_BASE_URL}/workouts/addWorkout`,
           formData,
@@ -117,11 +119,12 @@ const Workouts = () => {
             }
           }
         );
+        toast.success("Workout added successfully!");
       }
 
       fetchWorkouts();
       setShowForm(false);
-      setError(null); // Clear error on success
+      setError(null);
     } catch (err) {
       if (err.response?.status === 403) {
         setError("You are not authorized to update this workout.");
@@ -130,7 +133,6 @@ const Workouts = () => {
       }
     }
   };
-
 
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
@@ -180,25 +182,26 @@ const Workouts = () => {
         </div>
       ) : (
         <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-          {workouts.map((workout) => (
-            <div key={workout._id} className="col">
-              <div className="card h-100 shadow-sm text-center">
-                <div className="card-body">
-                  <h5 className="card-title fw-bold">{workout.name}</h5>
-                  <p><i className="bi bi-clock"></i> Duration: {workout.duration}</p>
-                  <p><i className="bi bi-pin-angle-fill text-danger"></i> Status: <strong>{workout.status}</strong></p>
-                  <p><i className="bi bi-calendar-event"></i> Added: {formatDate(workout.dateAdded)}</p>
-                </div>
-                <div className="card-footer d-flex justify-content-center gap-2 bg-transparent">
-                  <button className="btn btn-sm btn-outline-primary" onClick={() => handleEdit(workout)}>Edit</button>
-                  <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(workout._id)}>Delete</button>
-                  {workout.status !== 'completed' && (
-                    <button className="btn btn-sm btn-outline-success" onClick={() => handleComplete(workout._id)}>✓ Done</button>
-                  )}
+          {workouts.filter(workout => workout && workout._id)
+            .map((workout) => (
+              <div key={workout._id} className="col">
+                <div className="card h-100 shadow-sm text-center">
+                  <div className="card-body">
+                    <h5 className="card-title fw-bold">{workout.name}</h5>
+                    <p><i className="bi bi-clock"></i> Duration: {workout.duration}</p>
+                    <p><i className="bi bi-pin-angle-fill text-danger"></i> Status: <strong>{workout.status}</strong></p>
+                    <p><i className="bi bi-calendar-event"></i> Added: {formatDate(workout.dateAdded)}</p>
+                  </div>
+                  <div className="card-footer d-flex justify-content-center gap-2 bg-transparent">
+                    <button className="btn btn-sm btn-outline-primary" onClick={() => handleEdit(workout)}>Edit</button>
+                    <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(workout._id)}>Delete</button>
+                    {workout.status !== 'completed' && (
+                      <button className="btn btn-sm btn-outline-success" onClick={() => handleComplete(workout._id)}>✓ Done</button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
         </div>
       )}
     </div>

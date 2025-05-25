@@ -3,6 +3,7 @@ import { BrowserRouter as Router } from 'react-router-dom';
 import { Route, Routes } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { UserProvider } from './context/UserContext';
+import { ToastContainer } from 'react-toastify';
 
 import AppNavbar from './components/AppNavbar';
 import Home from './pages/Home';
@@ -10,6 +11,7 @@ import Register from './pages/Register.js';
 import Login from './pages/Login';
 import Logout from './pages/Logout';
 import Workouts from './pages/Workouts.js';
+import 'react-toastify/dist/ReactToastify.css';
 
 
 function App() {
@@ -56,6 +58,7 @@ function App() {
             <Route path="/logout" element={<Logout />} />
 
           </Routes>
+          <ToastContainer position="top-right" autoClose={3000} hideProgressBar />
         </Container>
       </Router>
 
